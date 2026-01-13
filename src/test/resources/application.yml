@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: manager-order-test
+
+  # Configurações do JPA para Testes
+  jpa:
+    show-sql: true # Quero ver o que o Hibernate está fazendo nos testes
+    hibernate:
+      ddl-auto: create-drop # Cria as tabelas no início do teste e apaga no fim
+    properties:
+      hibernate:
+        format_sql: true # Deixa o log do SQL legível
+        # Dialeto explícito ajuda a evitar erros bobos em versões diferentes do driver
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # Desabilita o OpenInView para testes (boa prática para pegar erros de LazyLoading)
+  open-in-view: false
+
+  # Logging focado para acharmos erros rápido
+logging:
+  level:
+    io.github.douglasdreer.managerorder: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE # Mostra os valores dos '?' no SQL
