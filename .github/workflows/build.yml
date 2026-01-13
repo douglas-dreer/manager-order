@@ -1,0 +1,35 @@
+name: SonarCloud Analysis
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+jobs:
+  build:
+    name: Build and analyze
+    runs-on: ubuntu-latest # ✅ Docker já está disponível aqui[citation:1]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up JDK 21 # ✅ Alterado de 17 para 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'temurin'
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+      - name: Run tests with Testcontainers
+        run: ./gradlew test --info # ✅ Executa os testes (incluindo os de integração)
+      - name: Build and run Sonar analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./gradlew build sonar --info # ✅ Agora o 'build' não falhará nos testes
