@@ -12,24 +12,24 @@ description = "manager-order"
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
 jacoco {
-    toolVersion = "0.8.11"
+    toolVersion = "0.8.12"
 }
 
 tasks.jacocoTestReport {
     reports {
-        xml.required.set(true) // O SonarCloud requer o formato XML
+        xml.required.set(true)
         html.required.set(true)
     }
 }
 
 sonar {
     properties {
-        property("sonar.projectKey", "douglas-dreer_pokemon-tcg-collection")
+        property("sonar.projectKey", "douglas-dreer_manager-order")
         property("sonar.organization", "douglas-dreer")
     }
 }
@@ -48,12 +48,13 @@ repositories {
 }
 
 dependencies {
-    // --- Spring Boot Starters (Spring Boot 4) ---
+    // --- Spring Boot Starters ---
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa") // Starter específico para JPA
-    implementation("org.springframework.boot:spring-boot-starter-amqp")     // Starter específico para AMQP
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.springframework.boot:spring-boot-starter-amqp")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 
     // --- Database ---
     runtimeOnly("org.postgresql:postgresql")
@@ -68,57 +69,68 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 
-    // --- Test Dependencies (CRÍTICO para Spring Boot 4) ---
-    // Starter de teste base
+    // --- Resilience4j (Spring Boot 4 compatível) ---
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+
+    // --- Test Dependencies ---
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    // Starters de teste específicos para cada tecnologia usada
-    testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
-    testImplementation("org.springframework.boot:spring-boot-starter-amqp-test")
-    // Módulo para integração com Testcontainers
+    testImplementation("org.springframework.amqp:spring-rabbit-test")
+
+    // --- Testcontainers ---
+    testImplementation(platform("org.testcontainers:testcontainers-bom:1.20.4"))
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    // Testcontainers
-    testImplementation(platform("org.testcontainers:testcontainers-bom:1.19.7"))
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:rabbitmq")
 }
 
-tasks {
-    test {
-        useJUnitPlatform()
-        jvmArgs = listOf(
-            "-XX:+EnableDynamicAgentLoading",
-            "-Djdk.instrument.traceUsage=false"
+tasks.withType<Test> {
+    useJUnitPlatform()
+
+    systemProperty("spring.profiles.active", "test")
+
+    systemProperty("testcontainers.reuse.enable", "false")
+
+    systemProperty("spring.datasource.hikari.max-lifetime", "10000")
+    systemProperty("spring.datasource.hikari.connection-timeout", "5000")
+    systemProperty("spring.datasource.hikari.validation-timeout", "2000")
+
+    jvmArgs = listOf(
+        "-XX:+EnableDynamicAgentLoading",
+        "-Djdk.instrument.traceUsage=false"
+    )
+
+    testLogging {
+        events("passed", "skipped", "failed")
+        showExceptions = true
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+    }
+}
+
+tasks.bootJar {
+    archiveBaseName.set("manager-order")
+    archiveVersion.set(version.toString())
+    manifest {
+        attributes(
+            "Implementation-Title" to project.name,
+            "Implementation-Version" to project.version
         )
-        testLogging {
-            events("passed", "skipped", "failed")
-            showExceptions = true
-            exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-        }
     }
+}
 
-    bootJar {
-        archiveBaseName.set("manager-order")
-        archiveVersion.set(version.toString())
-        manifest {
-            attributes(
-                "Implementation-Title" to project.name,
-                "Implementation-Version" to project.version
-            )
-        }
-    }
+tasks.jar {
+    enabled = false
+}
 
-    jar {
-        enabled = false
-    }
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+    options.compilerArgs.addAll(listOf("-parameters", "-Xlint:unchecked"))
+}
 
-    compileJava {
-        options.encoding = "UTF-8"
-        options.compilerArgs.addAll(listOf("-parameters", "-Xlint:unchecked"))
-    }
-
-    compileTestJava {
-        options.encoding = "UTF-8"
+tasks.register<Test>("integrationTest") {
+    useJUnitPlatform {
+        includeTags("integration")
     }
 }
 

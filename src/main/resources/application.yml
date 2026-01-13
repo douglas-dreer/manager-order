@@ -1,23 +1,72 @@
 spring:
   application:
     name: Manager Order Service
+
+  # DATASOURCE - Configurações separadas por perfil
   datasource:
-    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB}
-    username: ${POSTGRES_USER}
-    password: ${POSTGRES_PASSWORD}
+    url: jdbc:postgresql://localhost:5432/${POSTGRES_DB:manager_order_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 5
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+      maximum-pool-size: ${DATASOURCE_MAX_POOL_SIZE:10}
+      minimum-idle: ${DATASOURCE_MIN_IDLE:5}
+      connection-timeout: ${DATASOURCE_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${DATASOURCE_IDLE_TIMEOUT:600000}
+      max-lifetime: ${DATASOURCE_MAX_LIFETIME:1800000}
+      leak-detection-threshold: ${DATASOURCE_LEAK_DETECTION:0} # 0=desabilitado por padrão
 
-    # JPA Configuration
+  # JPA Configuration
   jpa:
-     database-platform: org.hibernate.dialect.PostgreSQLDialect
-     hibernate:
-       ddl-auto: validate
-     show-sql: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}  # validate em produção, update/test em dev
+      # Configurações CRÍTICAS para evitar problemas no shutdown
+      jdbc:
+        time_zone: UTC
+        batch_size: 20
+      order_updates: true
+      order_inserts: true
+      query:
+        in_clause_parameter_padding: true
+    show-sql: ${JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        # Otimizações para shutdown limpo
+        connection.provider_disables_autocommit: true
+        jdbc.batch_size: 20
+        jdbc.fetch_size: 50
+        default_schema: ${POSTGRES_SCHEMA:public}
+        # Evita validações desnecessárias durante shutdown
+        temp.use_jdbc_metadata_defaults: false
+        # Habilita apenas se necessário
+        # hbm2ddl.auto: validate
+
+  # Spring Boot 4 - Import de configurações
   config:
     import: optional:file:.env[.properties]
+    activate:
+      on-profile: default
+
+# Resilience4j
+resilience4j:
+  circuitbreaker:
+    instances:
+      orderService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 5s
+        failureRateThreshold: 50
+
+# Logging configurado para evitar spam no CI
+logging:
+  level:
+    com.zaxxer.hikari: ${HIKARI_LOG_LEVEL:WARN}  # WARN em produção, DEBUG local
+    org.hibernate: ${HIBERNATE_LOG_LEVEL:WARN}
+    org.testcontainers: ${TESTCONTAINERS_LOG_LEVEL:INFO}
+    io.github.douglasdreer.managerorder: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"

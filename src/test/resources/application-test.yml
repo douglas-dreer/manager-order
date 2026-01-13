@@ -1,0 +1,48 @@
+spring:
+  # SOBRESCREVE configurações para Testcontainers
+  datasource:
+    hikari:
+      # Configurações AGGRESSIVAS para evitar timeout no CI
+      max-lifetime: 10000                 # 10 segundos (não 30 minutos!)
+      connection-timeout: 5000            # 5 segundos
+      validation-timeout: 2000            # 2 segundos
+      leak-detection-threshold: 5000      # Detecta conexões vazando
+      idle-timeout: 5000                  # 5 segundos
+      maximum-pool-size: 3                # Pool pequeno para testes
+      minimum-idle: 1                     # Mínimo necessário
+      initialization-fail-timeout: 0      # Não falha na inicialização
+
+  jpa:
+    hibernate:
+      ddl-auto: validate                  # NUNCA create-drop em testes com containers!
+    properties:
+      hibernate:
+        # Configurações para shutdown limpo
+        hibernate.check_nullability: false
+        temp.use_jdbc_metadata_defaults: false
+        jdbc.time_zone: UTC
+        # Desabilita features que causam problemas no shutdown
+        generate_statistics: false
+        jdbc.batch_versioned_data: false
+        connection.handling_mode: DELAYED_ACQUISITION_AND_RELEASE_AFTER_STATEMENT
+
+  # Desabilita features não necessárias em testes
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+# Logging específico para testes
+logging:
+  level:
+    root: WARN
+    com.zaxxer.hikari: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.testcontainers: INFO
+    io.github.douglasdreer: DEBUG
+
+# Testcontainers
+testcontainers:
+  reuse:
+    enable: false  # IMPORTANTE: Containers novos a cada teste
