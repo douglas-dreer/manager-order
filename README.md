@@ -8,7 +8,11 @@ Este serviço é responsável pela orquestração, processamento e cálculo de p
 
 ## 🚀 Como Executar
 
-A aplicação é "Docker First". Para mais detalhes sobre como configurar e executar o projeto, consulte a documentação técnica.
+A aplicação é "Docker First". Para subir o ambiente local:
+
+1. Copie o arquivo `.env-exemplo` para `.env` e ajuste as variáveis.
+2. Execute `docker-compose up --build`.
+3. A aplicação ficará disponível na porta configurada em `SERVER_PORT`.
 
 ---
 
@@ -16,8 +20,8 @@ A aplicação é "Docker First". Para mais detalhes sobre como configurar e exec
 
 Para informações detalhadas sobre a aplicação, acesse a pasta `docs/`:
 
-* **architecture.md** - Diagramas, fluxos e arquitetura do sistema
-* **api-contract.md** - Especificação completa das APIs
+* **architecture.md** - Visão de arquitetura e fluxo de processamento
+* **api-contract.md** - Status e pontos de documentação da API
 * **decisions.md** - Decisões técnicas e justificativas
 
 ---
